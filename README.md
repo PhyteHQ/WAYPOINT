@@ -35,6 +35,21 @@ This project has no dependency on, and makes no changes to, RHW or DTR.
   import/export, and a deliberately fictitious opt-in functional example.
 - A German interface, responsive ship selection and route results, keyboard
   controls, native dialogs, reduced-motion support, and a Web Worker for search.
+- Searchable base/system dialogs with large touch targets. The mobile picker
+  follows the visual viewport so search and results fit above the keyboard.
+- Installable **WAYPOINT** app with its own Android/desktop and Apple icons.
+  The app shell and navigation are available offline after installation;
+  market snapshots retain their original saved-data label and timestamp.
+  Content-based releases update together after the user chooses to restart.
+
+## Install as an app
+
+Use the download icon / **App installieren** button at the top of the planner.
+Supporting browsers open their installation prompt; otherwise the button shows
+instructions. On Android use Chrome's **App installieren** menu. On iPhone
+or iPad open the page in Safari, then **Teilen → Zum Home-Bildschirm**.
+The installation and offline cache are scoped to this project; other Pages
+apps on the same GitHub account keep their own service workers and caches.
 
 ## Local validation
 

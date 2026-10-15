@@ -1,6 +1,8 @@
 import { PROFILES, optimizeTour } from './trade.mjs';
 import { cacheRead, cacheWrite, liveData, loadNavigation, parseImport } from './data.mjs';
 import { example } from './example.mjs';
+import { setupMarketPicker } from './picker.mjs';
+import { setupPwa } from './pwa.mjs';
 
 const $ = id => document.getElementById(id);
 const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -22,6 +24,8 @@ try {
   for (const id of ['capital', 'maxMinutes', 'dockTime', 'jumpTime', 'chargeTime', 'breadth']) if (settings[id] != null && /^\d+$/.test(String(settings[id]))) $(id).value = settings[id];
   blocked = Array.isArray(settings.blocked) ? settings.blocked.filter(x => typeof x === 'string').slice(0, 1000) : [];
 } catch { /* Corrupt or unavailable preferences do not prevent startup. */ }
+const marketPicker = setupMarketPicker();
+setupPwa();
 
 function saveSettings() {
   const settings = { profile: profile.id, mode, blocked, returnScope: $('returnScope').value,
@@ -77,26 +81,24 @@ function updateSource() {
 }
 function setDataset(data, source) {
   dataset = data; dataMode = source; results = []; stats = null;
-  $('baseList').replaceChildren(...data.bases.map(base => { const option = document.createElement('option'); option.value = base.name; option.label = base.systemName || base.system || ''; return option; }));
-  const systems = new Map(data.bases.filter(b => b.system).map(b => [b.system, b.systemName || b.system]));
-  $('systemList').replaceChildren(...[...systems].sort((a, b) => a[1].localeCompare(b[1])).map(([id, name]) => {
-    const option = document.createElement('option'); option.value = name; option.label = id; return option;
-  }));
+  marketPicker.setData(data);
   updateSource();
 }
 function options() {
   const startText = $('start').value.trim();
   const matches = dataset.bases.filter(b => b.name === startText || b.id === startText);
-  if (startText && matches.length !== 1) throw new Error('Bitte eine eindeutige Startbasis aus der Vorschlagsliste wählen.');
+  const selectedStart = matches.find(b => b.id === $('start').dataset.marketId) || (matches.length === 1 ? matches[0] : null);
+  if (startText && !selectedStart) throw new Error('Bitte eine Startbasis über die Basisauswahl wählen.');
   const returnScope = $('returnScope').value, returnText = $('returnSystem').value.trim().toLowerCase();
   const systems = [...new Map(dataset.bases.filter(b => b.system).map(b => [b.system, { id: b.system, name: b.systemName || b.system }])).values()];
   const targets = systems.filter(s => s.id.toLowerCase() === returnText || s.name.toLowerCase() === returnText);
-  if (mode !== 'one' && returnScope === 'system' && returnText && targets.length !== 1) throw new Error('Bitte ein eindeutiges Zielsystem aus der Vorschlagsliste wählen.');
+  const selectedTarget = targets.find(s => s.id === $('returnSystem').dataset.marketId) || (targets.length === 1 ? targets[0] : null);
+  if (mode !== 'one' && returnScope === 'system' && returnText && !selectedTarget) throw new Error('Bitte ein Zielsystem über die Systemauswahl wählen.');
   if (!$('plannerForm').reportValidity()) return null;
   const cargo = Number($('cargo').value), capital = Number($('capital').value);
   if (!(cargo > 0 && cargo <= profile.cargo) || !(capital >= 0)) throw new Error('Freies Volumen oder Kapital ist ungültig.');
-  return { mode, start: matches[0]?.id || '', cargo, capital, excludePobs: !$('pobs').checked, allowUnknownTime: $('unknownTime').checked,
-    returnScope, returnSystem: returnText ? targets[0]?.id || '' : '', flexiblePickups: true, allowEmptyReturn: $('allowEmptyReturn').checked,
+  return { mode, start: selectedStart?.id || '', cargo, capital, excludePobs: !$('pobs').checked, allowUnknownTime: $('unknownTime').checked,
+    returnScope, returnSystem: returnText ? selectedTarget?.id || '' : '', flexiblePickups: true, allowEmptyReturn: $('allowEmptyReturn').checked,
     maxMinutes: Number($('maxMinutes').value), sort: $('sort').value, blocked,
     breadth: Number($('breadth').value), searchMs: 18000,
     timeModel: { dock: Number($('dockTime').value), jump: Number($('jumpTime').value), charge: Number($('chargeTime').value), lane: 10 } };
