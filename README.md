@@ -37,6 +37,10 @@ This project has no dependency on, and makes no changes to, RHW or DTR.
   controls, native dialogs, reduced-motion support, and a Web Worker for search.
 - Searchable base/system dialogs with large touch targets. The mobile picker
   follows the visual viewport so search and results fit above the keyboard.
+- A compact quick search with start base and route mode. Cargo, capital, return
+  settings, filters and time-model controls are under **Suche anpassen**.
+  A visible summary keeps the active settings apparent while collapsed, and
+  invalid inputs automatically reveal their containing options before focus.
 - Installable **WAYPOINT** app with its own Android/desktop and Apple icons.
   The app shell and navigation are available offline after installation;
   market snapshots retain their original saved-data label and timestamp.

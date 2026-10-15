@@ -52,11 +52,27 @@ function setMode(next) {
 }
 function updateReturnControls() {
   const roundTrip = mode !== 'one', system = $('returnScope').value === 'system';
+  $('routeOptionsGroup').hidden = !roundTrip;
   $('returnControls').hidden = !roundTrip;
   $('returnSystemField').hidden = !system;
   $('startHint').textContent = !roundTrip ? 'Die Anreise von dieser Basis zum Einkaufsort wird mitgerechnet.' : system ?
     'Lokale Abholbasen dürfen wechseln. Die Tour endet bei einem passenden Abnehmer im Zielsystem.' :
     'Die Tour kehrt genau zu dieser Basis zurück. Leer lassen für freie Startwahl.';
+}
+function updateSearchSummary() {
+  const parts = [];
+  if (mode !== 'one') {
+    parts.push(mode === 'auto' ? '2–3 Handelsflüge' : `${mode === 'two' ? 2 : 3} Handelsflüge`);
+    parts.push($('returnScope').value === 'base' ? 'Zur Startbasis' : $('returnSystem').value ? `Ziel: ${$('returnSystem').value}` : 'Zurück ins Startsystem');
+    if ($('allowEmptyReturn').checked) parts.push('Leerer Rückweg erlaubt');
+  }
+  parts.push(`${integer(Number($('cargo').value))} Vol.`, `${money(Number($('capital').value))} $ Startgeld`,
+    $('maxMinutes').value === '1440' ? 'Ohne Zeitlimit' : `Max. ${$('maxMinutes').value} Min.`, $('pobs').checked ? 'POBs ein' : 'POBs aus');
+  if ($('unknownTime').checked) parts.push('Auch ohne Flugzeit');
+  if ($('breadth').value === '45') parts.push('Erweiterte Suche');
+  if (Number($('dockTime').value) !== 30 || Number($('jumpTime').value) !== 15 || Number($('chargeTime').value) !== 5) parts.push('Eigenes Zeitmodell');
+  if (blocked.length) parts.push(`${integer(blocked.length)} Basen ausgeblendet`);
+  $('searchSettingsSummary').textContent = parts.join(' · ');
 }
 function notice(text, severity = 'warn') {
   $('notice').textContent = text; $('notice').hidden = !text;
@@ -124,10 +140,12 @@ function getWorker() {
   return worker;
 }
 function queueSearch() {
+  updateSearchSummary();
   clearTimeout(debounce);
   if (dataset) debounce = setTimeout(runSearch, 250);
 }
 function runSearch() {
+  updateSearchSummary();
   clearTimeout(debounce);
   if (!dataset) return;
   try {
@@ -251,6 +269,11 @@ document.addEventListener('click', event => {
   if (event.target.closest('#clearBlocked')) { blocked = []; saveSettings(); $('modelDialog').close(); runSearch(); }
 });
 $('plannerForm').addEventListener('submit', event => { event.preventDefault(); runSearch(); });
+$('plannerForm').addEventListener('input', updateSearchSummary);
+$('plannerForm').addEventListener('invalid', event => {
+  // Make invalid controls reachable even inside collapsed advanced settings.
+  for (let details = event.target.closest('details'); details; details = details.parentElement?.closest('details')) details.open = true;
+}, true);
 $('plannerForm').addEventListener('change', event => { if (event.target.id === 'stops') setMode(event.target.value); else { updateReturnControls(); queueSearch(); } });
 $('sort').addEventListener('change', queueSearch);
 $('refreshButton').addEventListener('click', refresh);

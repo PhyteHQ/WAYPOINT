@@ -35,30 +35,39 @@
     </section>
     <div class="workbench">
       <aside class="planner" aria-labelledby="plannerTitle">
-        <div class="panel-top"><span class="eyebrow" id="plannerTitle">02 · AUFTRAGSPROFIL</span><span class="panel-cross" aria-hidden="true">+</span></div>
+        <div class="panel-top"><span class="eyebrow" id="plannerTitle">02 · SCHNELLSUCHE</span><span class="panel-cross" aria-hidden="true">+</span></div>
         <form id="plannerForm">
+          <label class="field quick-start">Startbasis<span class="picker-input"><input id="start" placeholder="Beliebiger Start" readonly aria-haspopup="dialog" aria-controls="marketPickerDialog" autocomplete="off"><span aria-hidden="true">⌕</span></span><span class="hint" id="startHint">Ohne Startbasis wird die Anreise nicht mitgerechnet.</span></label>
           <fieldset class="mode-field"><legend>Routenmodus</legend><div class="mode-buttons" role="group" aria-label="Routenmodus">
             <button type="button" data-mode="one" aria-pressed="false">Einzellieferung<span>A → B</span></button>
             <button type="button" data-mode="auto" class="active" aria-pressed="true">Rückhandel<span>A → … → Ziel</span></button>
           </div></fieldset>
+          <p class="search-settings" id="searchSettingsSummary" aria-label="Aktuelle Sucheinstellungen"></p>
+          <details class="search-options" id="searchOptions"><summary>Suche anpassen<span>Filter &amp; Optionen <i aria-hidden="true">+</i></span></summary><div class="search-options-content">
+          <fieldset class="option-group" id="routeOptionsGroup"><legend>Route &amp; Rückkehr</legend>
           <label class="field" id="stopsField">Handelsabschnitte<select id="stops"><option value="auto">Automatisch · 2 oder 3</option><option value="two">2 · Hin- und Rückhandel</option><option value="three">3 · Mit Zwischenhandel</option></select></label>
-          <label class="field">Startbasis<span class="picker-input"><input id="start" placeholder="Beliebiger Start" readonly aria-haspopup="dialog" aria-controls="marketPickerDialog" autocomplete="off"><span aria-hidden="true">⌕</span></span><span class="hint" id="startHint">Ohne Startbasis wird die Anreise nicht mitgerechnet.</span></label>
           <div id="returnControls">
             <label class="field">Rückkehrziel<select id="returnScope"><option value="system">Zielsystem · freie Abnehmer</option><option value="base">Startbasis · exakt zurück</option></select></label>
             <label class="field" id="returnSystemField">Zielsystem<span class="picker-input"><input id="returnSystem" placeholder="Startsystem · automatisch" readonly aria-haspopup="dialog" aria-controls="marketPickerDialog" autocomplete="off"><span aria-hidden="true">⌕</span></span><span class="hint">Leer lassen: Rückhandel in das System deiner Startbasis.</span></label>
             <label class="check"><input id="allowEmptyReturn" type="checkbox"><span>Leeren Rückweg zulassen<span class="hint">Lokale Anflüge zur Abholung bleiben möglich und zählen zur Tourzeit.</span></span></label>
           </div>
+          </fieldset>
+          <fieldset class="option-group"><legend>Ladung &amp; Startkapital</legend>
           <div class="field-row"><label class="field">Freies Volumen<input id="cargo" type="number" inputmode="numeric" min="1" max="5000" value="5000" step="1" required></label><label class="field">Kapital · $<input id="capital" type="number" inputmode="numeric" min="0" max="1000000000000" value="5000000" step="1000" aria-describedby="capitalHint" required></label></div>
           <p class="hint capital-hint" id="capitalHint">Dein verfügbares Startgeld für Warenkäufe. Verkaufserlöse finanzieren die nächsten Käufe; POB-Geld wird separat geprüft.</p>
+          </fieldset>
+          <fieldset class="option-group"><legend>Suchfilter</legend>
           <label class="field">Maximale Tourdauer<select id="maxMinutes"><option value="15">15 Minuten</option><option value="30">30 Minuten</option><option value="60" selected>60 Minuten</option><option value="120">120 Minuten</option><option value="1440">Ohne Begrenzung</option></select></label>
           <label class="check"><input id="pobs" type="checkbox" checked><span>Player Owned Bases einbeziehen</span></label>
-          <details class="advanced"><summary>Weitere Einstellungen</summary>
+          </fieldset>
+          <details class="advanced" id="modelOptions"><summary>Zeitmodell &amp; Suchtiefe</summary>
             <label class="check"><input id="unknownTime" type="checkbox"><span>Auch ohne berechenbare Flugzeit anzeigen</span></label>
             <label class="field">Zeit je Start / Stopp · Sekunden<input id="dockTime" type="number" min="0" max="600" value="30"></label>
             <label class="field">Sprungzeit · Sekunden<input id="jumpTime" type="number" min="1" max="300" value="15"></label>
             <label class="field">Cruise-Ladezeit · Sekunden<input id="chargeTime" type="number" min="0" max="60" value="5"></label>
             <label class="field">Suchtiefe<select id="breadth"><option value="18">Standard · bis zu 18 Anschlussangebote</option><option value="45">Erweitert · bis zu 45 Anschlussangebote</option></select></label>
           </details>
+          </div></details>
           <button class="button primary search-button" id="searchButton" type="submit" disabled>Routen berechnen <span aria-hidden="true">↗</span></button>
           <button type="button" class="button subtle cancel" id="cancelButton" hidden>Suche beenden</button>
           <p class="form-note">Eine Ware je Handelsabschnitt. Zusätzliche Abholbasen und alle Anflüge werden mitgerechnet.</p>
