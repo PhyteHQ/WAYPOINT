@@ -3,6 +3,8 @@
 Independent trading planner for **Freelancer Discovery**, maintained in
 [`PhyteHQ/WAYPOINT`](https://github.com/PhyteHQ/WAYPOINT) with its own GitHub Pages site.
 
+**Open the planner: [WAYPOINT](https://phytehq.github.io/WAYPOINT/).**
+
 This project has no dependency on, and makes no changes to, RHW or DTR.
 
 ## Included
@@ -57,10 +59,13 @@ Darkstat endpoints are public, cross-origin requests. The client checks response
 shape and never replaces failed live data with fictitious offers. A failed
 request retains an explicitly labelled last-good snapshot if one exists.
 The displayed timestamp records when data was received; it does **not** prove
-the age of upstream Discovery data. A simultaneous live JSON/CORS round trip
-could not be verified in the authoring environment: that environment received
-an unavailable HTML response / HTTP 405 from the Darkstat host. This needs
-validation in a normal browser after publication.
+the age of upstream Discovery data. The optional **Check public Darkstat data**
+workflow job uses the same application client to check the live endpoints,
+normalization, POB field completeness, and CORS permission for the Pages origin.
+Both public POST endpoints returned HTTP 200 and allowed the origin during the
+initial publication check on 15 October 2026. This non-blocking check keeps an
+upstream outage from preventing deployment of the cache/import interface.
+Visual and interactive checks in a real browser remain separate from this API check.
 
 The navigation graph was derived from all 230 archives in the public
 Discovery patch manifest, through **22/08/2026 — 5.3 patch 5 hotfix 5**:

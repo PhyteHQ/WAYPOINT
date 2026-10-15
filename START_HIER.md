@@ -4,7 +4,9 @@ Eigenständiger Handelsplaner für Freelancer Discovery im Repository
 [`PhyteHQ/WAYPOINT`](https://github.com/PhyteHQ/WAYPOINT). Das Projekt hat
 keine Abhängigkeit von RHW oder DTR.
 
-## Stand dieser Übergabe
+**Seite öffnen: [WAYPOINT](https://phytehq.github.io/WAYPOINT/).**
+
+## Projektstand
 
 Die Anwendung und der GitHub-Pages-Workflow sind implementiert. Ein Push auf
 `main` baut und prüft die Anwendung und startet die Veröffentlichung. Dafür
@@ -35,11 +37,13 @@ Bedienabläufe mit echtem Suchalgorithmus in einer DOM-Umgebung geprüft:
 Schiffwechsel, Routentypen, Ergebnistabelle, Details und Zeitmodell.
 Eine visuelle Browserprüfung der veröffentlichten Seite steht noch aus.
 
-Der echte Darkstat-Abruf konnte in der Arbeitsumgebung nicht bestätigt werden;
-der Server lieferte hier keine nutzbaren JSON-Marktdaten. Dies muss nach der
-Veröffentlichung im Browser geprüft werden. Ein Fehler zeigt eine deutliche
-Meldung. Erfundenen Marktdaten werden niemals automatisch als Live-Daten
-ausgegeben. Das zuschaltbare Funktionsbeispiel ist ausdrücklich fiktiv.
+Der echte Darkstat-Abruf mit dem Anwendungscode wurde in GitHub Actions
+erfolgreich geprüft: Beide API-Endpunkte lieferten HTTP 200, gültige Marktdaten
+und eine CORS-Freigabe für die veröffentlichte Seite. Der zusätzliche,
+nicht blockierende Prüfjob meldet Probleme mit dem öffentlichen Datenabruf.
+Ein Abruffehler in der Anwendung zeigt eine deutliche Meldung. Erfundene
+Marktdaten werden niemals automatisch als Live-Daten ausgegeben. Das
+zuschaltbare Funktionsbeispiel ist ausdrücklich fiktiv.
 
 Die Suche findet die besten geprüften Kandidaten innerhalb einer begrenzten
 Suche. Diese Version plant eine Ware je Streckenabschnitt. Gemischte Ladungen,
