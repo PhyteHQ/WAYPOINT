@@ -84,8 +84,8 @@ export function baseProblems(base) {
   return ['cash', 'space'].filter(f => !finite(base[f])).map(f => f === 'cash' ? 'POB-Geld fehlt' : 'POB-Lagerplatz fehlt');
 }
 
-export function makeLeg(source, target, goodId, profile) {
-  const from = source.offers.find(x => x.id === goodId), to = target.offers.find(x => x.id === goodId);
+export function makeLeg(source, target, goodId, profile,
+  from = source.offers.find(x => x.id === goodId), to = target.offers.find(x => x.id === goodId)) {
   if (!from || !to || !(from.buy > 0) || !(to.sell > 0)) return null;
   const volume = volumeFor(from, profile);
   if (!volume || (volumeFor(to, profile) != null && Math.abs(volume - volumeFor(to, profile)) > EPS)) return null;
@@ -147,7 +147,10 @@ export function optimizeTour(legs, bases, options) {
   if (!legs.length || !Number.isFinite(options.capital) || options.capital < 0 || !(options.cargo > 0)) return null;
   const count = legs.length, byId = new Map(bases.map(b => [b.id, b]));
   let best = null;
-  for (let mask = 0; mask < 2 ** Math.max(0, count - 1); mask++) {
+  const orderChoices = [];
+  for (let i = 1; i < count; i++) if (legs[i - 1].good && legs[i].good) orderChoices.push(i - 1);
+  for (let choice = 0; choice < 2 ** orderChoices.length; choice++) {
+    const mask = orderChoices.reduce((m, bit, i) => m | (choice & (1 << i) ? 1 << bit : 0), 0);
     const variables = {}, constraints = {}, ints = {};
     let constraintId = 0;
     const vectorOf = () => Array(count).fill(0);

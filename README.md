@@ -11,8 +11,13 @@ This project has no dependency on, and makes no changes to, RHW or DTR.
 
 - Ship profiles: **5,000 volume / 350 m/s**, **Pilgrim 4,300 / 410**, and
   **Longhorn 3,600 / 500**. Available volume and working capital are adjustable.
-- One-way deliveries, closed two-station routes, closed three-station routes,
-  and an automatic comparison of the two closed-route modes.
+- One-way deliveries and two- or three-trade itineraries with return cargo.
+  By default, return cargo may be picked up at another base in the arrival
+  system and sold to any eligible buyer in the target system. An exact return
+  to the starting base remains selectable. Empty return is opt-in.
+- Every local pickup flight and extra station stop is included in travel time.
+  The target system defaults to the starting system and can be overridden.
+- All displayed monetary amounts use **$**, with unchanged in-game values.
 - Integer cargo quantities constrained by ship volume, purchase capital,
   source reserves, destination max stock, POB money, and POB storage.
 - Separate ship cargo volume and original POB storage volume.
@@ -20,7 +25,9 @@ This project has no dependency on, and makes no changes to, RHW or DTR.
   stops. Buying return cargo first can fund an incoming delivery and free
   storage, provided ship capacity and player funds permit it.
 - Sequential state updates, detailed action plans, source/destination balances,
-  exclusion of inaccessible bases, and up to twelve simulated repeat runs.
+  exclusion of inaccessible bases, and up to twelve simulated repeat runs for
+  itineraries that physically return to the same base. A system return to a
+  different base is not presented as an immediately repeatable station loop.
 - Per-ship shortest travel paths over the bundled public navigation graph.
   Travel times are model estimates, including separate cruise, lane and jump
   behavior; they are not obtained by scaling a generic 350 m/s route time.
@@ -87,12 +94,16 @@ The interface states these assumptions. Personal reputation and POB whitelists
 cannot be confirmed from these public market records. The user can exclude
 bases they cannot use.
 
-Search is deliberately bounded: positive-margin trading legs, one good per leg,
-up to 18 or 45 outgoing candidates, and an 18-second search budget. Displayed
+Search is deliberately bounded: positive-margin trading legs, one good per
+trading leg, up to 18 or 45 matching continuation/return candidates, and an
+18-second search budget. Destination matching precedes candidate pruning.
+Displayed
 quantities are jointly optimized and replay-validated for each candidate tour.
 The list is labelled **best found**, not the mathematically proven global
-optimum. Loss-making intermediate trades, mixed loads, and arbitrary tours of
-four or more stations are outside this version. Empty return legs are allowed.
+optimum. Loss-making intermediate trades, mixed loads, and itineraries with
+four or more loaded trading legs are outside this version. Local transfers may
+add extra bases to the itinerary. Empty return requires explicit permission;
+empty local pickup flights remain possible and are fully timed.
 
 ## Refreshing navigation
 

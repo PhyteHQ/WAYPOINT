@@ -9,3 +9,7 @@
 @media(max-width:580px){.result-table th:nth-child(1){width:calc(100% - 135px)}.result-table th:nth-child(3){width:83px}.result-table th:nth-child(5){width:52px}}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;scroll-behavior:auto!important}}
 @media(pointer:coarse){.close-button,.detail-button,.text-button{min-height:44px}.detail-button{min-width:32px}.text-button{padding-block:10px}}
+
+#returnControls{grid-column:1/-1;min-width:0}.route-head{flex-wrap:wrap}
+
+.check .hint{display:block;margin-top:4px}

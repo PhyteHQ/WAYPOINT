@@ -115,3 +115,18 @@ test('malformed snapshots cannot enter the calculation', () => {
   assert.throws(() => validateDataset({ schema: 1, bases: [base('A', []), base('A', [])] }));
   assert.throws(() => validateDataset({ schema: 1, bases: [base('A', [item('x', { volume: -1 })])] }));
 });
+
+test('a local pickup reuses delivery proceeds but cannot fund a different POB retroactively', () => {
+  const a = base('A', [item('ore', { buy: 10 })]);
+  const b = base('B', [item('ore', { sell: 30, stock: 0, max: 1 })], { kind: 'pob', cash: 30, space: 1 });
+  const pickup = base('P', [item('food', { buy: 25, stock: 1, max: 1 })], { kind: 'pob', cash: 0, space: 0 });
+  const target = base('T', [item('food', { sell: 50 })]);
+  const legs = [leg(a, b, 'ore'), { source: 'B', target: 'P', good: null }, leg(pickup, target, 'food')];
+  const result = optimizeTour(legs, [a, b, pickup, target], { cargo: 1, capital: 10 });
+  assert.deepEqual(result.quantities, [1, 0, 1]);
+  assert.equal(result.profit, 45);
+  assert.equal(result.capitalNeeded, 10);
+  b.cash = 0;
+  assert.equal(optimizeTour(legs, [a, b, pickup, target], { cargo: 1, capital: 100 }), null,
+    'money paid at pickup P cannot pay for delivery at B before that pickup');
+});

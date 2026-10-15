@@ -17,14 +17,20 @@ ausgewählt sein.
 
 - 5.000er Transporter mit 350 Cruise, Pilgrim mit 4.300 / 410 und Longhorn
   mit 3.600 / 500; direkt umschaltbar.
-- One Way, geschlossene Zwei- und Drei-Stationen-Touren sowie Vergleich der
-  geschlossenen Varianten.
+- One Way und Touren mit zwei oder drei Handelsabschnitten. Für Rückladungen
+  werden auch andere Abholbasen im selben Ankunftssystem und passende Abnehmer
+  im Zielsystem geprüft. Das Zielsystem ist frei wählbar und entspricht ohne
+  eigene Vorgabe dem Startsystem. Exakte Rückkehr zur Startbasis bleibt wählbar.
+- Ein leerer Rückweg muss ausdrücklich zugelassen werden. Lokale Anflüge zur
+  Abholung sind möglich und zählen vollständig zur Flugzeit.
+- Die Währungsanzeige verwendet überall **$** für dieselben Spielgeldbeträge.
 - Stückzahlen aus tatsächlichem Warenvolumen, verfügbarem Frachtraum und
   eigenem Handelskapital.
 - POB-Prüfung von Verkaufsreserve, Ankaufgrenze, Geld und freiem Lager.
   Originalvolumen für POB-Lager und Transportvolumen werden getrennt gerechnet.
 - Gemeinsame Mengenplanung einer Tour, passende Handelsreihenfolge und
-  Fortschreibung von Beständen und Kassen. Wiederholungen verbrauchen Vorräte.
+  Fortschreibung von Beständen und Kassen. Wiederholungen verbrauchen Vorräte
+  und werden nur bei tatsächlicher Rückkehr zur gleichen Basis ausgewiesen.
 - Flugwege über Cruise, Handelsrouten und Sprünge; geschätzte Dauer und
   Gewinn pro Stunde. Die Cruise-Geschwindigkeit beeinflusst den konkreten Weg.
 - Details pro Handelsschritt, Zeitmodell, ausschließbare Basen, Datenzeitpunkt,
@@ -32,7 +38,7 @@ ausgewählt sein.
 
 ## Prüfung und offene Punkte
 
-Die Berechnung wird mit 21 automatischen Tests geprüft. Zusätzlich wurden die
+Die Berechnung wird mit 30 automatischen Tests geprüft. Zusätzlich wurden die
 Bedienabläufe mit echtem Suchalgorithmus in einer DOM-Umgebung geprüft:
 Schiffwechsel, Routentypen, Ergebnistabelle, Details und Zeitmodell.
 Eine visuelle Browserprüfung der veröffentlichten Seite steht noch aus.
@@ -46,8 +52,9 @@ Marktdaten werden niemals automatisch als Live-Daten ausgegeben. Das
 zuschaltbare Funktionsbeispiel ist ausdrücklich fiktiv.
 
 Die Suche findet die besten geprüften Kandidaten innerhalb einer begrenzten
-Suche. Diese Version plant eine Ware je Streckenabschnitt. Gemischte Ladungen,
-mehr als drei Handelsstationen und verlustbringende Zwischenkäufe sind noch
+Suche. Diese Version plant eine Ware je Handelsabschnitt. Lokale Abholflüge
+können zusätzliche Stationen hinzufügen. Gemischte Ladungen,
+mehr als drei beladene Handelsabschnitte und verlustbringende Zwischenkäufe sind noch
 nicht Teil der Suche. Zeitwerte sind Schätzungen ohne Kampf, Hindernisse,
 Warteschlangen oder individuelle Ruf-/POB-Zugangsprüfung.
 
