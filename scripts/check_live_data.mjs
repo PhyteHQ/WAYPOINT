@@ -2,6 +2,7 @@
 import { liveData } from '../src/data.mjs';
 import { baseProblems, makeLeg, optimizeTour, simulate, PROFILES } from '../src/trade.mjs';
 import { search } from '../src/search.mjs';
+import { groupRoutes } from '../src/variants.mjs';
 import { readFileSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
 
@@ -66,8 +67,10 @@ try {
       if (!replay || Math.abs(replay.profit - route.profit) > 1e-6) throw new Error('A selected mixed manifest fails exact financial replay.');
     }
     const best = result.results[0];
+    const groups = groupRoutes(result.results, new Map(data.bases.map(b => [b.id, b])), options.sort);
     console.log(JSON.stringify({ check: 'live-system-return-search', start: start.name, targetSystem: start.systemName,
       found: result.results.length, mixed: result.results.filter(r => r.mixed).length, considered: result.stats.considered,
+      routeGroups: groups.length, variantsPerGroup: groups.map(group => group.entries.length),
       checked: result.stats.checked, ranked: result.stats.ranked, elapsedMs: Math.round(result.stats.elapsed),
       baselineBestHourly: result.stats.baselineBestHourly, mixedRefinements: result.stats.mixedRefinements,
       best: best ? { profit: best.profit, seconds: best.seconds, trades: best.tradeCount,

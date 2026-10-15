@@ -3,6 +3,7 @@ import { cacheRead, cacheWrite, liveData, loadNavigation, parseImport } from './
 import { example } from './example.mjs';
 import { setupMarketPicker } from './picker.mjs';
 import { setupPwa } from './pwa.mjs';
+import { groupRoutes } from './variants.mjs';
 
 const $ = id => document.getElementById(id);
 const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -168,19 +169,31 @@ function routeNames(route) {
   const ids = [route.legs[0].source, ...route.legs.map(l => l.target)];
   return ids.map(id => dataset.bases.find(b => b.id === id)?.name || id);
 }
+const variantPageSize = 5;
+function resultRow({ route, index }, group, groupIndex, variant = 0) {
+  const names = routeNames(route);
+  const tradeCount = route.tradeCount || route.legs.filter(l => l.good).length;
+  const tourLabel = !route.roundTrip ? 'ONE WAY' : route.returnScope === 'system' ? 'SYSTEMTOUR' : 'RUNDTOUR';
+  const hasPob = route.legs.some(l => dataset.bases.find(b => b.id === l.source)?.kind === 'pob' || dataset.bases.find(b => b.id === l.target)?.kind === 'pob');
+  const manifest = route.legs.map((leg, n) => `<div class="cargo-manifest">${route.loads[n].length ? route.loads[n].slice(0, 3).map(line => `<span class="cargo-item">${escape(line.name)}<b>${integer(line.quantity)} Stk. · ${integer(line.quantity * line.volume)} Vol.</b></span>`).join('') + (route.loads[n].length > 3 ? `<small>+ ${integer(route.loads[n].length - 3)} weitere Waren · siehe Handelsplan</small>` : '') : `<span>${leg.purpose === 'return' ? 'Leerer Rückweg' : 'Anflug zur Abholung'}</span>`}</div>`).join('');
+  const alternatives = group.entries.length - 1;
+  const rank = variant ? `${groupIndex + 1}.${variant + 1}` : String(groupIndex + 1).padStart(2, '0');
+  const toggle = !variant && alternatives ? `<button class="variants-toggle" data-variants="${groupIndex}" data-count="${alternatives}" aria-expanded="false" aria-controls="route-variants-${groupIndex}"><span>${integer(alternatives)} weitere ${alternatives === 1 ? 'Variante' : 'Varianten'}</span><i aria-hidden="true">+</i></button>` : '';
+  const family = !variant ? `<div class="route-family">${group.names.map(escape).join(' → ')}${group.local ? ' · lokal' : ''}</div>` : '';
+  return `<tr ${variant ? `data-variant-row ${variant > variantPageSize ? 'hidden' : ''}` : 'data-family-main'}><td><div class="route-head"><span class="rank">${rank}</span>${variant ? '<span class="variant-label">ALTERNATIVE</span>' : ''}<span class="tag ${route.roundTrip ? 'green' : ''}">${tourLabel}</span>${hasPob ? '<span class="tag">POB</span>' : ''}${route.mixed ? '<span class="tag cargo-tag" title="Mehrere Waren auf demselben Flug">MIX</span>' : ''}</div>${family}<div class="route-name">${names.map(escape).join('<span class="route-arrow">→</span>')}</div><div class="route-system">${escape(profile.name)} · ${integer(tradeCount)} ${tradeCount === 1 ? 'Handelsflug' : 'Handelsflüge'}${route.mixed ? ` · Bis zu ${integer(Math.max(...route.loads.map(load => load.length)))} Waren je Flug` : ''}${route.localTransfers ? ` · ${integer(route.localTransfers)} Anflüge` : ''}${route.returnSystemName ? ` · Ziel: ${escape(route.returnSystemName)}` : ''} · ${route.jumps == null ? 'Sprünge unbekannt' : `${integer(route.jumps)} Sprünge`} · ${duration(route.seconds)}</div><div class="mobile-profit">${route.hourly != null ? `${money(route.hourly)} $ / h` : '$ / h unbekannt'}</div>${toggle}</td><td class="goods">${manifest}</td><td class="numeric"><strong title="${integer(route.profit)} $">${money(route.profit)}</strong><div class="subvalue">${integer(route.peakCargo)} / ${integer(activeOptions.cargo)} Vol.</div></td><td class="numeric hourly"><strong>${money(route.hourly)}</strong><div class="subvalue">${duration(route.seconds)}</div></td><td><button class="detail-button" data-route="${index}" aria-label="Handelsplan für Route ${groupIndex + 1}, Variante ${variant + 1} öffnen">↗</button></td></tr>`;
+}
 function renderResults() {
   const available = results.length;
+  const byId = new Map(dataset.bases.map(b => [b.id, b]));
+  const groups = groupRoutes(results, byId, activeOptions.sort);
   if (!available) {
     $('resultsBody').innerHTML = `<div class="empty-state"><div class="route-symbol" aria-hidden="true"><span></span><i></i><span></span></div><h3>Für dieses Profil kein Treffer.</h3><p>${stats?.noNavigation ? 'Für mögliche Angebote fehlen nutzbare Flugwege oder vollständige Navigationsdaten. Du kannst Angebote ohne Flugzeit in den Einstellungen ausdrücklich zulassen.' : 'Prüfe Zielsystem, Rückladung, Kapital, Tourdauer oder Routenmodus. Ein leerer Rückweg wird nur bei ausdrücklicher Freigabe eingeplant. POBs mit fehlenden Pflichtangaben bleiben ausgeschlossen.'}</p></div>`;
   } else {
-    $('resultsBody').innerHTML = `<table class="result-table"><thead><tr><th scope="col">ROUTE / STATIONEN</th><th scope="col">LADUNG</th><th scope="col">GEWINN · $</th><th scope="col">$ / STUNDE</th><th scope="col"><span class="sr-only">Details</span></th></tr></thead><tbody>${results.map((route, index) => {
-      const names = routeNames(route);
-      const tradeCount = route.tradeCount || route.legs.filter(l => l.good).length;
-      const tourLabel = !route.roundTrip ? 'ONE WAY' : route.returnScope === 'system' ? 'SYSTEMTOUR' : 'RUNDTOUR';
-      const hasPob = route.legs.some(l => dataset.bases.find(b => b.id === l.source)?.kind === 'pob' || dataset.bases.find(b => b.id === l.target)?.kind === 'pob');
-      const manifest = route.legs.map((leg, n) => `<div class="cargo-manifest">${route.loads[n].length ? route.loads[n].slice(0, 3).map(line => `<span class="cargo-item">${escape(line.name)}<b>${integer(line.quantity)} Stk. · ${integer(line.quantity * line.volume)} Vol.</b></span>`).join('') + (route.loads[n].length > 3 ? `<small>+ ${integer(route.loads[n].length - 3)} weitere Waren · siehe Handelsplan</small>` : '') : `<span>${leg.purpose === 'return' ? 'Leerer Rückweg' : 'Anflug zur Abholung'}</span>`}</div>`).join('');
-      return `<tr><td><div class="route-head"><span class="rank">${String(index + 1).padStart(2, '0')}</span><span class="tag ${route.roundTrip ? 'green' : ''}">${tourLabel}</span>${hasPob ? '<span class="tag">POB</span>' : ''}${route.mixed ? '<span class="tag cargo-tag" title="Mehrere Waren auf demselben Flug">MIX</span>' : ''}</div><div class="route-name">${names.map(escape).join('<span class="route-arrow">→</span>')}</div><div class="route-system">${escape(profile.name)} · ${integer(tradeCount)} ${tradeCount === 1 ? 'Handelsflug' : 'Handelsflüge'}${route.mixed ? ` · Bis zu ${integer(Math.max(...route.loads.map(load => load.length)))} Waren je Flug` : ''}${route.localTransfers ? ` · ${integer(route.localTransfers)} Anflüge` : ''}${route.returnSystemName ? ` · Ziel: ${escape(route.returnSystemName)}` : ''} · ${route.jumps == null ? 'Sprünge unbekannt' : `${integer(route.jumps)} Sprünge`} · ${duration(route.seconds)}</div><div class="mobile-profit">${route.hourly != null ? `${money(route.hourly)} $ / h` : '$ / h unbekannt'}</div></td><td class="goods">${manifest}</td><td class="numeric"><strong title="${integer(route.profit)} $">${money(route.profit)}</strong><div class="subvalue">${integer(route.peakCargo)} / ${integer(activeOptions.cargo)} Vol.</div></td><td class="numeric hourly"><strong>${money(route.hourly)}</strong><div class="subvalue">${duration(route.seconds)}</div></td><td><button class="detail-button" data-route="${index}" aria-label="Handelsplan für Tour ${index + 1} öffnen">↗</button></td></tr>`;
-    }).join('')}</tbody></table>`;
+    const summary = `${integer(groups.length)} ${groups.length === 1 ? 'Routengruppe' : 'Routengruppen'} · ${integer(available)} gefundene ${available === 1 ? 'Variante' : 'Varianten'}`;
+    $('resultsBody').innerHTML = `<div class="route-groups-note"><strong>${summary}</strong><span>Beste Variante je Route nach ${activeOptions.sort === 'profit' ? 'Gewinn' : '$ / Stunde'}. Gleiche Systemfolge gebündelt; lokale Touren nach erster Handelsstrecke.</span></div><table class="result-table"><thead><tr><th scope="col">ROUTE / STATIONEN</th><th scope="col">LADUNG</th><th scope="col">GEWINN · $</th><th scope="col">$ / STUNDE</th><th scope="col"><span class="sr-only">Details</span></th></tr></thead>${groups.map((group, groupIndex) => {
+      const remaining = group.entries.length - 1 - variantPageSize;
+      return `<tbody class="route-group-main">${resultRow(group.entries[0], group, groupIndex)}</tbody>${group.entries.length > 1 ? `<tbody class="route-variants" id="route-variants-${groupIndex}" hidden>${group.entries.slice(1).map((entry, index) => resultRow(entry, group, groupIndex, index + 1)).join('')}${remaining > 0 ? `<tr class="variants-controls"><td><button class="variants-more" data-more-variants="${groupIndex}">${integer(Math.min(variantPageSize, remaining))} weitere anzeigen · noch ${integer(remaining)}</button></td><td aria-hidden="true"></td><td aria-hidden="true"></td><td aria-hidden="true"></td><td aria-hidden="true"></td></tr>` : ''}</tbody>` : ''}`;
+    }).join('')}</table>`;
   }
   $('resultsFoot').textContent = `${integer(stats?.checked || 0)} Touren mit Mengenprüfung · ${integer(stats?.excludedBases || 0)} Basen ausgeschlossen · ${stats?.partial ? 'Begrenzte Suche; weitere Möglichkeiten können existieren' : 'Kandidatensuche abgeschlossen'} · ${dataMode === 'demo' ? 'Fiktives Beispiel' : 'Persönlichen Dockzugang prüfen'}`;
 }
@@ -265,6 +278,24 @@ document.addEventListener('click', event => {
   const ship = event.target.closest('[data-ship]'); if (ship) setProfile(PROFILES.find(p => p.id === ship.dataset.ship));
   const modeButton = event.target.closest('[data-mode]'); if (modeButton) setMode(modeButton.dataset.mode === 'one' ? 'one' : $('stops').value);
   const detail = event.target.closest('[data-route]'); if (detail) openDetail(Number(detail.dataset.route));
+  const variants = event.target.closest('[data-variants]');
+  if (variants) {
+    const expanded = variants.getAttribute('aria-expanded') !== 'true';
+    variants.setAttribute('aria-expanded', String(expanded));
+    $(`route-variants-${variants.dataset.variants}`).hidden = !expanded;
+    const count = Number(variants.dataset.count);
+    variants.querySelector('span').textContent = expanded ? 'Varianten einklappen' : `${integer(count)} weitere ${count === 1 ? 'Variante' : 'Varianten'}`;
+  }
+  const moreVariants = event.target.closest('[data-more-variants]');
+  if (moreVariants) {
+    const pending = [...$(`route-variants-${moreVariants.dataset.moreVariants}`).querySelectorAll('[data-variant-row][hidden]')];
+    for (const row of pending.slice(0, variantPageSize)) row.hidden = false;
+    const remaining = Math.max(0, pending.length - variantPageSize);
+    if (!remaining) {
+      document.querySelector(`[data-variants="${moreVariants.dataset.moreVariants}"]`).focus();
+      moreVariants.closest('tr').hidden = true;
+    } else moreVariants.textContent = `${integer(Math.min(variantPageSize, remaining))} weitere anzeigen · noch ${integer(remaining)}`;
+  }
   const close = event.target.closest('[data-close]'); if (close) $(close.dataset.close).close();
   if (event.target.closest('#exampleButton')) { liveController?.abort(); liveController = null; const data = example(); navigation = data.navigation; setDataset(data.dataset, 'demo'); $('start').value = ''; runSearch(); }
   const block = event.target.closest('[data-block]');

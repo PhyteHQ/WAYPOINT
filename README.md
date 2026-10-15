@@ -38,6 +38,11 @@ This project has no dependency on, and makes no changes to, RHW or DTR.
   import/export, and a deliberately fictitious opt-in functional example.
 - A German interface, responsive ship selection and route results, keyboard
   controls, native dialogs, reduced-motion support, and a Web Worker for search.
+- Route families show their best variant first, using the selected hourly/total
+  profit objective. Alternative docks, buyers and cargo can be expanded five at
+  a time. Families share a directed trading-system itinerary and trade count;
+  entirely local tours also share their first trading dock pair. Bounded result
+  retention reserves different families before filling in additional variants.
 - Searchable base/system dialogs with large touch targets. The mobile picker
   follows the visual viewport so search and results fit above the keyboard.
 - A compact quick search with start base and route mode. Cargo, capital, return
@@ -119,7 +124,9 @@ bases they cannot use.
 Search is deliberately bounded: positive-margin trading legs, up to 18 or 45
 matching continuation/return candidates, an 18-second single-good route-search
 budget, and up to six additional seconds for mixed-cargo improvement.
-The search first retains broad single-good route coverage. It then improves
+The search first retains broad single-good route coverage. Both intermediate
+retention and the final 60-variant limit reserve family representatives before
+adding alternatives in rounds, keeping the overall best route. It then improves
 the best paths with mixed manifests, always retaining any better baseline,
 and uses remaining refinement time to explore grouped-cargo paths. Goods
 sharing a source/destination pair are grouped into one manifest.

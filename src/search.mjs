@@ -2,6 +2,7 @@ import { baseProblems, makeLeg, optimizeTour } from './trade.mjs';
 import { Navigator } from './navigation.mjs';
 import { cargoItems } from './cargo.mjs';
 import { estimateShipment, selectCandidates, roughTravelTime } from './ranking.mjs';
+import { selectDiverseRoutes } from './variants.mjs';
 
 const empty = (from, to, purpose) => ({ source: from, target: to, good: null, name: 'Leerflug', margin: 0, volume: 0, purpose });
 const pause = () => new Promise(resolve => setTimeout(resolve, 0));
@@ -116,12 +117,6 @@ async function searchCandidates(dataset, navigation, profile, options, report = 
     if (!flexible || !sameSystem(current, trade.source)) return null;
     return [...legs, empty(current, trade.source, 'pickup'), trade];
   }
-  function compare(a, b) {
-    if (options.sort === 'profit') return b.profit - a.profit;
-    if (a.hourly == null && b.hourly != null) return 1;
-    if (b.hourly == null && a.hourly != null) return -1;
-    return (b.hourly ?? b.profit) - (a.hourly ?? a.profit);
-  }
   async function consider(legs, goal = null) {
     considered++;
     if (considered % 40 === 0) {
@@ -152,7 +147,10 @@ async function searchCandidates(dataset, navigation, profile, options, report = 
       returnSystem: goal?.system || null, returnSystemName: goal ? destination.systemName || destination.system : null,
       tradeCount: legs.filter(l => l.good).length, localTransfers: legs.filter(l => !l.good && l.purpose !== 'return').length,
       emptyReturn: last.purpose === 'return' });
-    if (results.length > 300) { results.sort(compare); results.length = 150; }
+    if (results.length > 300) {
+      const retained = selectDiverseRoutes(results, byId, { limit: 150, sort: options.sort });
+      results.splice(0, results.length, ...retained);
+    }
   }
   async function finish(prefix, goal) {
     for (const trade of await nextTrades(prefix, goal)) {
@@ -199,8 +197,7 @@ async function searchCandidates(dataset, navigation, profile, options, report = 
       if (extended) await finish(extended, goal);
     }
   }
-  results.sort(compare);
-  return { results: results.slice(0, 60), stats: { considered, checked, ranked, rejectedTime, noNavigation, excludedBases: bases.length - usable.length,
+  return { results: selectDiverseRoutes(results, byId, { sort: options.sort }), stats: { considered, checked, ranked, rejectedTime, noNavigation, excludedBases: bases.length - usable.length,
     candidateEdges, shipmentCandidates: edges.length, partial: pruned || expired || canceled(), canceled: canceled(), elapsed: performance.now() - started },
     assumptions: [options.mixedCargo === false ? 'Eine Ware je Handelsabschnitt' : 'Mischladungen zwischen denselben Basen', 'Lokale Anflüge mit vollständiger Flugzeit',
       allowEmptyReturn ? 'Leerer Rückweg zugelassen' : 'Rückhandel mit Ladung erforderlich',
@@ -262,8 +259,7 @@ export async function search(dataset, navigation, profile, options, report = () 
     if (!previous || route.profit > previous.profit + 1e-6 || Math.abs(route.profit - previous.profit) <= 1e-6 && route.capitalNeeded < previous.capitalNeeded)
       bestByPath.set(key, route);
   }
-  const results = [...bestByPath.values()].sort((a, b) => options.sort === 'profit' ? b.profit - a.profit :
-    (b.hourly ?? -Infinity) - (a.hourly ?? -Infinity) || b.profit - a.profit).slice(0, 60);
+  const results = selectDiverseRoutes([...bestByPath.values()], byId, { sort: options.sort });
   return { ...baseline, results, stats: { ...baseline.stats,
     considered: baseline.stats.considered + checked + (extra?.stats.considered || 0),
     checked: baseline.stats.checked + checked + (extra?.stats.checked || 0), ranked: baseline.stats.ranked + (extra?.stats.ranked || 0),

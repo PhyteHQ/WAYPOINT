@@ -44,3 +44,11 @@ body.picker-open{overflow:hidden}
 @media(max-width:580px){.search-settings{font-size:11px}.search-options>summary{min-height:52px}.search-options-content{padding-top:12px}}
 
 .cargo-manifest+.cargo-manifest{margin-top:12px;padding-top:10px;border-top:1px solid var(--line)}.cargo-item{display:block;overflow-wrap:anywhere}.cargo-item+.cargo-item{margin-top:7px}.cargo-item b{display:block}.cargo-manifest>small{display:block;font-size:10px;margin-top:6px;color:var(--dim)}.cargo-tag{color:var(--accent);border-color:#446257}
+
+/* Show one representative per itinerary, with paged alternatives on demand. */
+.route-groups-note{padding:15px 24px 2px;font-size:11px;line-height:1.7;color:var(--muted)}.route-groups-note strong{display:block;font-weight:500;color:var(--ink)}.route-groups-note>span{display:block;font-size:10px;margin-top:3px;color:var(--dim)}
+.route-family{font:10px/1.6 var(--mono);color:var(--accent);margin-bottom:7px;overflow-wrap:anywhere}.variant-label{font:8px var(--mono);letter-spacing:.5px;color:var(--dim)}
+.variants-toggle,.variants-more{display:flex;align-items:center;gap:10px;border:1px solid #405650;border-radius:3px;background:transparent;color:var(--accent);min-height:36px;padding:7px 10px;margin-top:13px;font-size:11px;text-align:left;max-width:100%}.variants-toggle i{font:16px var(--mono);font-style:normal}.variants-toggle[aria-expanded=true] i{transform:rotate(45deg)}.variants-toggle:hover,.variants-more:hover{background:var(--accent-bg)}.variants-more{margin-top:0;line-height:1.6}
+.result-table .route-group-main tr td{background:transparent;border-bottom:1px solid var(--line)}.result-table .route-group-main:first-of-type tr td{background:#a3e5c505}.result-table .route-variants tr td{background:#10191e;border-bottom:1px solid var(--line);padding-block:16px}.result-table .route-variants td:first-child{border-left:2px solid #405650}.result-table .variants-controls td{padding-block:12px}
+@media(max-width:580px){.route-groups-note{padding:13px 15px 0}.route-family{font-size:9px}.variants-toggle,.variants-more{font-size:11px;min-height:44px}.result-table .route-variants tr td{padding-block:14px}}
+@media(pointer:coarse){.variants-toggle,.variants-more{min-height:44px}}
