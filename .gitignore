@@ -1,0 +1,6 @@
+dist/
+node_modules/
+__pycache__/
+.cache/
+data/navigation.json
+*.pyc
