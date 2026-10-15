@@ -56,8 +56,8 @@ try {
   if (start) {
     const navigation = JSON.parse(gunzipSync(readFileSync(new URL('../data/navigation.json.gz', import.meta.url))));
     const result = await search(data, navigation, PROFILES[2], { cargo: 3600, capital: 1000000, mode: 'auto', start: start.id,
-      returnScope: 'system', allowEmptyReturn: false, maxMinutes: 120, sort: 'hourly', breadth: 18, searchMs: 12000,
-      maxChecks: 2000, timeModel: { dock: 30, jump: 15, charge: 5, lane: 10 } });
+      returnScope: 'system', allowEmptyReturn: false, maxMinutes: 60, sort: 'hourly', breadth: 18, searchMs: 18000,
+      maxChecks: 10000, timeModel: { dock: 30, jump: 15, charge: 5, lane: 10 } });
     for (const route of result.results) {
       if (!route.legs.at(-1).good || route.returnSystem !== start.system) throw new Error('The system return violates its destination or cargo requirement.');
     }
