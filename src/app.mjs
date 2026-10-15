@@ -152,28 +152,36 @@ function renderDetail(quote, repeats) {
   const route = selectedRoute, names = routeNames(route), byId = new Map(dataset.bases.map(b => [b.id, b]));
   const knownTime = route.seconds != null;
   let content = `<h2 id="detailTitle">${names.map(escape).join(' → ')}</h2><div class="detail-status">${dataMode === 'demo' ? 'Fiktive Beispielroute · kein echter Handelsvorschlag' : `Mengen geprüft anhand des Abrufs ${clock(dataset.asOf)}. Persönlicher Dockzugang bleibt unbestätigt.`}</div><div class="detail-stats"><div class="detail-stat"><span>Gewinn dieser Tour</span><strong>${money(quote.profit)} <small>Cr</small></strong></div><div class="detail-stat"><span>Geschätzte Dauer</span><strong>${duration(route.seconds)}</strong></div><div class="detail-stat"><span>Kapitalbindung, maximal</span><strong>${money(quote.capitalNeeded)} <small>Cr</small></strong></div></div>`;
-  let previousBase = null;
-  for (const event of quote.events) {
-    if (event.base !== previousBase) {
-      if (previousBase) content += '</div>';
-      content += `<div class="halt"><h3>${escape(byId.get(event.base)?.name || event.base)}</h3>`;
-      previousBase = event.base;
+  const eventsByStop = Array.from({ length: route.legs.length + 1 }, () => []);
+  for (const event of quote.events) eventsByStop[event.kind === 'buy' ? event.leg : event.leg + 1].push(event);
+  for (let stop = 0; stop < eventsByStop.length; stop++) {
+    const baseId = stop === 0 ? route.legs[0].source : route.legs[stop - 1].target;
+    content += `<div class="halt"><h3>${escape(byId.get(baseId)?.name || baseId)}</h3>`;
+    for (const event of eventsByStop[stop]) {
+      const leg = route.legs[event.leg], base = byId.get(event.base), item = base.offers.find(i => i.id === leg.good);
+      const q = event.quantity;
+      const limits = [];
+      if (event.kind === 'buy') {
+        if (Math.floor((activeOptions.cargo - event.before.cargo + 1e-6) / leg.volume) === q) limits.push('freier Frachtraum');
+        if (Math.floor((event.before.player + 1e-6) / leg.buy) === q) limits.push('dein Kapital');
+        if (base.kind === 'pob' && Math.floor(event.before.stock - item.min) === q) limits.push('Verkaufsreserve');
+      } else if (base.kind === 'pob') {
+        if (Math.floor((event.before.cash + 1e-6) / leg.sell) === q) limits.push('POB-Geld');
+        if (Math.floor((event.before.space + 1e-6) / leg.targetVolume) === q) limits.push('POB-Lagerplatz');
+        if (Math.floor(item.max - event.before.stock) === q) limits.push('Ankaufslimit');
+      }
+      content += `<div class="event"><span class="event-label">${event.kind === 'buy' ? 'KAUF' : 'VERKAUF'}</span><div class="event-text">${integer(q)} × ${escape(leg.name)} zu ${integer(event.price)} Cr<small>${integer(q * leg.volume)} Volumen · ${integer(q * event.price)} Cr gesamt${limits.length ? ` · Grenze: ${limits.map(escape).join(', ')}` : ''}</small>${base.kind === 'pob' ? `<small class="event-meta">POB danach: ${integer(event.after.cash)} Cr · ${integer(event.after.space)} Vol. frei · ${integer(event.after.stock)} Stk. Bestand</small>` : ''}</div></div>`;
     }
-    const leg = route.legs[event.leg], base = byId.get(event.base), item = base.offers.find(i => i.id === leg.good);
-    const q = event.quantity;
-    const limits = [];
-    if (event.kind === 'buy') {
-      if (Math.floor((activeOptions.cargo - event.before.cargo + 1e-6) / leg.volume) === q) limits.push('freier Frachtraum');
-      if (Math.floor((event.before.player + 1e-6) / leg.buy) === q) limits.push('dein Kapital');
-      if (base.kind === 'pob' && Math.floor(event.before.stock - item.min) === q) limits.push('Verkaufsreserve');
-    } else if (base.kind === 'pob') {
-      if (Math.floor((event.before.cash + 1e-6) / leg.sell) === q) limits.push('POB-Geld');
-      if (Math.floor((event.before.space + 1e-6) / leg.targetVolume) === q) limits.push('POB-Lagerplatz');
-      if (Math.floor(item.max - event.before.stock) === q) limits.push('Ankaufslimit');
+    if (stop < route.legs.length) {
+      const leg = route.legs[stop], q = quote.quantities[stop];
+      const returning = route.closed && stop === route.legs.length - 1;
+      const load = leg.good ? `${integer(q)} × ${escape(leg.name)} · ${integer(q * leg.volume)} Volumen` : 'Leerflug · 0 Volumen';
+      content += `<div class="event flight"><span class="event-label">${returning ? 'RÜCKFLUG' : 'FLUG'}</span><div class="event-text">Nach ${escape(byId.get(leg.target)?.name || leg.target)}<small>${load}${knownTime ? ' · Flugzeit in der Gesamtdauer enthalten' : ''}</small></div></div>`;
+    } else if (route.closed) {
+      content += '<p class="detail-note route-arrival">Startbasis wieder erreicht · Rundtour abgeschlossen.</p>';
     }
-    content += `<div class="event"><span class="event-label">${event.kind === 'buy' ? 'KAUF' : 'VERKAUF'}</span><div class="event-text">${integer(q)} × ${escape(leg.name)} zu ${integer(event.price)} Cr<small>${integer(q * leg.volume)} Volumen · ${integer(q * event.price)} Cr gesamt${limits.length ? ` · Grenze: ${limits.map(escape).join(', ')}` : ''}</small>${base.kind === 'pob' ? `<small class="event-meta">POB danach: ${integer(event.after.cash)} Cr · ${integer(event.after.space)} Vol. frei · ${integer(event.after.stock)} Stk. Bestand</small>` : ''}</div></div>`;
+    content += '</div>';
   }
-  if (previousBase) content += '</div>';
   if (repeats) content += `<p class="detail-note">Mit fortgeschriebenen Beständen: <strong>${integer(repeats.count)}${repeats.capped ? '+' : ''} berechenbare Umläufe</strong>, zusammen ${integer(repeats.profit)} Cr für die ersten ${integer(repeats.count)} Umläufe. Die Ladungsmengen können sich pro Umlauf ändern. Fremde Händler und laufende Produktion sind nicht vorausgesagt.</p>`;
   content += `<p class="detail-note">Die Handelsreihenfolge oben gehört zur Mengenprüfung. Eine andere Reihenfolge kann an Geld oder Lagerplatz scheitern. ${knownTime ? 'Die Flugzeit berücksichtigt das gewählte Zeitmodell; Gefechte, Warteschlangen und Umwege sind nicht eingerechnet.' : 'Für diese Tour fehlt eine belastbare Flugzeit. Ein Stundenverdienst wird deshalb nicht ausgewiesen.'}</p>`;
   content += `<div class="halt"><h3>Basis ausschließen</h3><p class="detail-note">Wenn du dort nicht andocken kannst, kannst du die Basis für zukünftige Suchen ausblenden.</p><div class="blocked-list">${[...new Set(route.legs.flatMap(l => [l.source, l.target]))].map(id => `<button class="button subtle" data-block="${escape(id)}">${escape(byId.get(id)?.name || id)}</button>`).join(' ')}</div></div>`;
