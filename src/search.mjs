@@ -7,11 +7,11 @@ const empty = (from, to, purpose) => ({ source: from, target: to, good: null, na
 const pause = () => new Promise(resolve => setTimeout(resolve, 0));
 const pair = (from, to) => JSON.stringify([from, to]);
 
-export async function search(dataset, navigation, profile, options, report = () => {}, canceled = () => false) {
+async function searchCandidates(dataset, navigation, profile, options, report = () => {}, canceled = () => false, shared = {}) {
   const started = performance.now(), bases = dataset.bases.filter(b => !options.excludePobs || b.kind !== 'pob');
   const usable = bases.filter(b => !baseProblems(b).length && !options.blocked?.includes(b.id));
   const byId = new Map(usable.map(b => [b.id, b]));
-  const navigator = new Navigator(navigation, usable, profile, options.timeModel);
+  const navigator = shared.navigator ||= new Navigator(navigation, usable, profile, options.timeModel);
   const approximateTime = roughTravelTime(navigation, byId, profile, options.timeModel);
   const returnScope = options.returnScope === 'system' ? 'system' : 'base';
   const flexible = options.flexiblePickups === true || returnScope === 'system';
@@ -206,4 +206,69 @@ export async function search(dataset, navigation, profile, options, report = () 
       allowEmptyReturn ? 'Leerer Rückweg zugelassen' : 'Rückhandel mit Ladung erforderlich',
       'Bestände werden pro Geschäft fortgeschrieben; Preise bleiben im Modell konstant', 'Charakterabhängiger Dockzugang separat prüfen'],
     scope: 'Beste gefundene Touren; begrenzte Kandidatensuche, kein Nachweis des globalen Optimums.' };
+}
+
+export async function search(dataset, navigation, profile, options, report = () => {}, canceled = () => false) {
+  if (options.mixedCargo === false) return searchCandidates(dataset, navigation, profile, options, report, canceled);
+  const started = performance.now(), shared = {};
+  // Preserve broad, cheap route coverage before spending time on larger models.
+  const baseline = await searchCandidates(dataset, navigation, profile, { ...options, mixedCargo: false }, report, canceled, shared);
+  if (canceled()) return baseline;
+  const mixStarted = performance.now(), mixBudget = options.mixedMs ?? Math.min(6000, Math.max(1000, (options.searchMs ?? 18000) / 3));
+  const refinements = [], byId = new Map(dataset.bases.map(b => [b.id, b])), baskets = new Map(), baselinePaths = new Map();
+  const pathKey = route => route.legs.map(l => pair(l.source, l.target)).join('>');
+  for (const route of baseline.results) if (!baselinePaths.has(pathKey(route))) baselinePaths.set(pathKey(route), route);
+  let checked = 0;
+  function basket(leg) {
+    if (!leg.good) return leg;
+    const key = pair(leg.source, leg.target);
+    if (!baskets.has(key)) {
+      const source = byId.get(leg.source), target = byId.get(leg.target), offers = new Map(target.offers.map(o => [o.id, o]));
+      const items = source.offers.flatMap(from => {
+        const to = offers.get(from.id);
+        if (!(from.buy > 0 && to?.sell > from.buy)) return [];
+        const line = makeLeg(source, target, from.id, profile, from, to); return line ? [line] : [];
+      });
+      baskets.set(key, items.length > 1 ? { ...items[0], items } : items[0] || leg);
+    }
+    return baskets.get(key);
+  }
+  report({ phase: 'mixing', checkedMixed: 0, considered: baseline.stats.considered, checked: baseline.stats.checked, found: baseline.results.length });
+  for (const route of baselinePaths.values()) {
+    // Reserve time for paths that become feasible/profitable only as a mixture.
+    if (canceled() || performance.now() - mixStarted > mixBudget * .65) break;
+    const legs = route.legs.map(basket);
+    if (!legs.some(l => cargoItems(l).length > 1)) continue;
+    const bases = [...new Set(legs.flatMap(l => [l.source, l.target]))].map(id => byId.get(id));
+    const quote = optimizeTour(legs, bases, options); checked++;
+    if (quote && quote.profit > route.profit + 1e-6) refinements.push({ ...route, id: `${route.id}#mixed`, legs,
+      quantities: quote.quantities, itemQuantities: quote.itemQuantities, loads: quote.loads, orderMask: quote.orderMask,
+      profit: quote.profit, hourly: route.seconds > 0 ? quote.profit / route.seconds * 3600 : null,
+      capitalNeeded: quote.capitalNeeded, peakCargo: quote.peakCargo, mixed: quote.loads.some(load => load.length > 1) });
+    if (checked % 8 === 0) {
+      report({ phase: 'mixing', checkedMixed: checked, considered: baseline.stats.considered,
+        checked: baseline.stats.checked + checked, found: baseline.results.length });
+      await pause();
+    }
+  }
+  const remaining = mixBudget - (performance.now() - mixStarted);
+  const extra = remaining > 250 && !canceled() ? await searchCandidates(dataset, navigation, profile,
+    { ...options, mixedCargo: true, searchMs: remaining }, progress => report({ ...progress, phase: 'mixing', checkedMixed: checked + (progress.checked || 0),
+      considered: baseline.stats.considered + (progress.considered || 0), checked: baseline.stats.checked + checked + (progress.checked || 0),
+      found: baseline.results.length + (progress.found || 0) }), canceled, shared) : null;
+  const candidates = [...baseline.results, ...refinements, ...(extra?.results || [])], bestByPath = new Map();
+  for (const route of candidates) {
+    const key = pathKey(route), previous = bestByPath.get(key);
+    if (!previous || route.profit > previous.profit + 1e-6 || Math.abs(route.profit - previous.profit) <= 1e-6 && route.capitalNeeded < previous.capitalNeeded)
+      bestByPath.set(key, route);
+  }
+  const results = [...bestByPath.values()].sort((a, b) => options.sort === 'profit' ? b.profit - a.profit :
+    (b.hourly ?? -Infinity) - (a.hourly ?? -Infinity) || b.profit - a.profit).slice(0, 60);
+  return { ...baseline, results, stats: { ...baseline.stats,
+    considered: baseline.stats.considered + checked + (extra?.stats.considered || 0),
+    checked: baseline.stats.checked + checked + (extra?.stats.checked || 0), ranked: baseline.stats.ranked + (extra?.stats.ranked || 0),
+    noNavigation: baseline.stats.noNavigation + (extra?.stats.noNavigation || 0), rejectedTime: baseline.stats.rejectedTime + (extra?.stats.rejectedTime || 0),
+    mixedRefinements: refinements.length, baselineBestProfit: baseline.results[0]?.profit || 0, baselineBestHourly: baseline.results[0]?.hourly ?? null,
+    elapsed: performance.now() - started, partial: baseline.stats.partial || Boolean(extra?.stats.partial), canceled: canceled() },
+    assumptions: ['Mischladungen zwischen denselben Basen', ...baseline.assumptions.slice(1)] };
 }

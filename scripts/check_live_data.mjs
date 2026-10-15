@@ -69,13 +69,16 @@ try {
     console.log(JSON.stringify({ check: 'live-system-return-search', start: start.name, targetSystem: start.systemName,
       found: result.results.length, mixed: result.results.filter(r => r.mixed).length, considered: result.stats.considered,
       checked: result.stats.checked, ranked: result.stats.ranked, elapsedMs: Math.round(result.stats.elapsed),
+      baselineBestHourly: result.stats.baselineBestHourly, mixedRefinements: result.stats.mixedRefinements,
       best: best ? { profit: best.profit, seconds: best.seconds, trades: best.tradeCount,
         legs: best.legs.map((l, i) => ({ from: data.bases.find(b => b.id === l.source)?.name,
           to: data.bases.find(b => b.id === l.target)?.name, cargo: best.loads[i].map(item => ({ good: item.good, quantity: item.quantity })) })) } : null }));
     const single = await search(data, navigation, PROFILES[2], { ...options, mixedCargo: false });
     console.log(JSON.stringify({ check: 'live-cargo-comparison', snapshot: data.asOf,
       mixed: { found: result.results.length, bestProfit: best?.profit, bestHourly: best?.hourly, elapsedMs: Math.round(result.stats.elapsed) },
-      single: { found: single.results.length, bestProfit: single.results[0]?.profit, bestHourly: single.results[0]?.hourly, elapsedMs: Math.round(single.stats.elapsed) } }));
+      single: { found: single.results.length, bestProfit: single.results[0]?.profit, bestHourly: single.results[0]?.hourly, elapsedMs: Math.round(single.stats.elapsed),
+        legs: single.results[0]?.legs.map((l,i)=>({from: data.bases.find(b=>b.id===l.source)?.name,to:data.bases.find(b=>b.id===l.target)?.name,cargo:single.results[0].loads[i].map(item=>({good:item.good,quantity:item.quantity}))})) } }));
+    if (best && best.hourly + 1e-6 < result.stats.baselineBestHourly) throw new Error('Mixed refinement discarded a better baseline tour.');
   }
 } catch (error) {
   console.error(`Public market integration check failed: ${error.message}`);

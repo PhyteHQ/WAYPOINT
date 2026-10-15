@@ -130,7 +130,7 @@ function getWorker() {
       return;
     }
     if (data.id !== requestId) return;
-    if (data.type === 'progress') $('progressText').textContent = data.phase === 'offers' ? `Angebote vergleichen · ${integer(data.candidates)} mögliche Handelsverbindungen` : data.phase === 'ranking' ? `Mengen und Flugzeiten vergleichen · ${integer(data.ranked)} Anschlussangebote bewertet · ${integer(data.found)} Treffer` : `${integer(data.considered)} Touren gesichtet · ${integer(data.checked)} Mengenprüfungen · ${integer(data.found)} Treffer`;
+    if (data.type === 'progress') $('progressText').textContent = data.phase === 'mixing' ? `Mischladungen optimieren · ${integer(data.checkedMixed)} Touren verglichen` : data.phase === 'offers' ? `Angebote vergleichen · ${integer(data.candidates)} mögliche Handelsverbindungen` : data.phase === 'ranking' ? `Mengen und Flugzeiten vergleichen · ${integer(data.ranked)} Anschlussangebote bewertet · ${integer(data.found)} Treffer` : `${integer(data.considered)} Touren gesichtet · ${integer(data.checked)} Mengenprüfungen · ${integer(data.found)} Treffer`;
     else if (data.type === 'result') {
       busy = false; results = data.result.results; stats = data.result.stats;
       $('searchProgress').hidden = true; $('cancelButton').hidden = true; updateSource(); renderResults();

@@ -63,3 +63,21 @@ test('candidate diversity retains funded potential and selection terminates for 
   assert.equal(selectCandidates(scored.slice(0, 1), 100).length, 1);
   assert.equal(selectCandidates([], 18).length, 0);
 });
+
+test('mixed improvement keeps the best baseline and explores tours feasible only with multiple return goods', async () => {
+  const f = fixture(); f.dataset.bases.length = 2;
+  const [home, away] = f.dataset.bases;
+  home.offers = [offer('out', 1, null), offer('back-a', null, 70), offer('back-b', null, 70)];
+  away.kind = 'pob'; away.cash = 0; away.space = 0;
+  away.offers = [offer('out', null, 100, { stock: 0, min: 0, max: 10 }),
+    offer('back-a', 60, null, { stock: 1, min: 0, max: 10 }), offer('back-b', 60, null, { stock: 1, min: 0, max: 10 })];
+  const options = { ...settings, cargo: 3, capital: 121 };
+  assert.equal((await search(f.dataset, f.navigation, PROFILES[0], { ...options, mixedCargo: false })).results.length, 0);
+  const result = await search(f.dataset, f.navigation, PROFILES[0], options);
+  assert.equal(result.results[0].profit, 119); assert.equal(result.results[0].loads[1].length, 2);
+  assert.equal(result.stats.baselineBestProfit, 0);
+  const normal = fixture();
+  const improved = await search(normal.dataset, normal.navigation, PROFILES[0], settings);
+  assert(improved.results[0].hourly >= improved.stats.baselineBestHourly);
+  assert.equal(new Set(improved.results.map(r => r.legs.map(l => [l.source, l.target].join('|')).join('>'))).size, improved.results.length);
+});

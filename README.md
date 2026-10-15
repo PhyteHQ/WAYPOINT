@@ -117,8 +117,12 @@ cannot be confirmed from these public market records. The user can exclude
 bases they cannot use.
 
 Search is deliberately bounded: positive-margin trading legs, up to 18 or 45
-matching continuation/return candidates, and an 18-second search budget.
-Goods sharing a source/destination pair are grouped into one manifest.
+matching continuation/return candidates, an 18-second single-good route-search
+budget, and up to six additional seconds for mixed-cargo improvement.
+The search first retains broad single-good route coverage. It then improves
+the best paths with mixed manifests, always retaining any better baseline,
+and uses remaining refinement time to explore grouped-cargo paths. Goods
+sharing a source/destination pair are grouped into one manifest.
 Preselection estimates affordable quantities, source reserves, destination
 demand, shared cash/storage and flight time; several ranking criteria retain
 high-potential alternatives and promising backhauls. A bounded shortlist gets
