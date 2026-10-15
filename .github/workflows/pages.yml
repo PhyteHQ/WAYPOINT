@@ -14,6 +14,20 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  live-data:
+    name: Check public Darkstat data
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    continue-on-error: true
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check API responses and CORS with the application client
+        run: node scripts/check_live_data.mjs
   pages:
     runs-on: ubuntu-latest
     environment:
