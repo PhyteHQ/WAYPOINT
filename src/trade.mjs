@@ -1,4 +1,6 @@
 import solver from './vendor/lp-solver.mjs';
+import { cargoItems, optimizeMixedTour, simulateMixedTour } from './cargo.mjs';
+export { cargoItems } from './cargo.mjs';
 
 export const PROFILES = Object.freeze([
   { id: 'transport', name: 'Transporter', cargo: 5000, cruise: 350, dock: 'medium', volumeClass: null },
@@ -111,6 +113,7 @@ function eventsFor(legs, mask) {
 }
 
 export function simulate(legs, quantities, bases, options, mask = 0) {
+  if (legs.some(leg => cargoItems(leg).length > 1) || quantities.some(Array.isArray)) return simulateMixedTour(legs, quantities, bases, options, mask);
   const state = new Map(bases.map(b => [b.id, { ...b, offers: b.offers.map(o => ({ ...o })) }]));
   let cash = options.capital, cargo = 0, peakCargo = 0, minCash = cash;
   const events = [];
@@ -140,11 +143,13 @@ export function simulate(legs, quantities, bases, options, mask = 0) {
   }
   if (Math.abs(cargo) > EPS) return null;
   return { profit: cash - options.capital, capitalNeeded: options.capital - minCash, peakCargo, cash, events,
-    bases: [...state.values()], quantities, orderMask: mask };
+    bases: [...state.values()], quantities, itemQuantities: quantities.map((q, i) => legs[i].good ? [q] : []),
+    loads: legs.map((leg, i) => leg.good ? [{ ...leg, quantity: quantities[i] }] : []), orderMask: mask };
 }
 
 export function optimizeTour(legs, bases, options) {
   if (!legs.length || !Number.isFinite(options.capital) || options.capital < 0 || !(options.cargo > 0)) return null;
+  if (legs.some(leg => cargoItems(leg).length > 1)) return optimizeMixedTour(legs, bases, options);
   const count = legs.length, byId = new Map(bases.map(b => [b.id, b]));
   let best = null;
   const orderChoices = [];

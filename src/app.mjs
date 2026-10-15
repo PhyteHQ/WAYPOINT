@@ -1,4 +1,4 @@
-import { PROFILES, optimizeTour } from './trade.mjs';
+import { PROFILES, cargoItems } from './trade.mjs';
 import { cacheRead, cacheWrite, liveData, loadNavigation, parseImport } from './data.mjs';
 import { example } from './example.mjs';
 import { setupMarketPicker } from './picker.mjs';
@@ -21,6 +21,7 @@ try {
   if (['system', 'base'].includes(settings.returnScope)) $('returnScope').value = settings.returnScope;
   if (typeof settings.returnSystem === 'string' && settings.returnSystem.length < 200) $('returnSystem').value = settings.returnSystem;
   if (typeof settings.allowEmptyReturn === 'boolean') $('allowEmptyReturn').checked = settings.allowEmptyReturn;
+  if (typeof settings.mixedCargo === 'boolean') $('mixedCargo').checked = settings.mixedCargo;
   for (const id of ['capital', 'maxMinutes', 'dockTime', 'jumpTime', 'chargeTime', 'breadth']) if (settings[id] != null && /^\d+$/.test(String(settings[id]))) $(id).value = settings[id];
   blocked = Array.isArray(settings.blocked) ? settings.blocked.filter(x => typeof x === 'string').slice(0, 1000) : [];
 } catch { /* Corrupt or unavailable preferences do not prevent startup. */ }
@@ -29,7 +30,7 @@ setupPwa();
 
 function saveSettings() {
   const settings = { profile: profile.id, mode, blocked, returnScope: $('returnScope').value,
-    returnSystem: $('returnSystem').value, allowEmptyReturn: $('allowEmptyReturn').checked };
+    returnSystem: $('returnSystem').value, allowEmptyReturn: $('allowEmptyReturn').checked, mixedCargo: $('mixedCargo').checked };
   for (const id of ['capital', 'maxMinutes', 'dockTime', 'jumpTime', 'chargeTime', 'breadth']) settings[id] = $(id).value;
   try { localStorage.setItem('waypoint-settings-v1', JSON.stringify(settings)); } catch { /* Storage can be disabled. */ }
 }
@@ -69,6 +70,7 @@ function updateSearchSummary() {
   parts.push(`${integer(Number($('cargo').value))} Vol.`, `${money(Number($('capital').value))} $ Startgeld`,
     $('maxMinutes').value === '1440' ? 'Ohne Zeitlimit' : `Max. ${$('maxMinutes').value} Min.`, $('pobs').checked ? 'POBs ein' : 'POBs aus');
   if ($('unknownTime').checked) parts.push('Auch ohne Flugzeit');
+  if (!$('mixedCargo').checked) parts.push('Eine Ware pro Flug');
   if ($('breadth').value === '45') parts.push('Erweiterte Suche');
   if (Number($('dockTime').value) !== 30 || Number($('jumpTime').value) !== 15 || Number($('chargeTime').value) !== 5) parts.push('Eigenes Zeitmodell');
   if (blocked.length) parts.push(`${integer(blocked.length)} Basen ausgeblendet`);
@@ -114,7 +116,7 @@ function options() {
   const cargo = Number($('cargo').value), capital = Number($('capital').value);
   if (!(cargo > 0 && cargo <= profile.cargo) || !(capital >= 0)) throw new Error('Freies Volumen oder Kapital ist ungültig.');
   return { mode, start: selectedStart?.id || '', cargo, capital, excludePobs: !$('pobs').checked, allowUnknownTime: $('unknownTime').checked,
-    returnScope, returnSystem: returnText ? selectedTarget?.id || '' : '', flexiblePickups: true, allowEmptyReturn: $('allowEmptyReturn').checked,
+    returnScope, returnSystem: returnText ? selectedTarget?.id || '' : '', flexiblePickups: true, allowEmptyReturn: $('allowEmptyReturn').checked, mixedCargo: $('mixedCargo').checked,
     maxMinutes: Number($('maxMinutes').value), sort: $('sort').value, blocked,
     breadth: Number($('breadth').value), searchMs: 18000,
     timeModel: { dock: Number($('dockTime').value), jump: Number($('jumpTime').value), charge: Number($('chargeTime').value), lane: 10 } };
@@ -128,7 +130,7 @@ function getWorker() {
       return;
     }
     if (data.id !== requestId) return;
-    if (data.type === 'progress') $('progressText').textContent = data.phase === 'offers' ? `Angebote vergleichen · ${integer(data.candidates)} mögliche Handelsverbindungen` : `${integer(data.considered)} Touren gesichtet · ${integer(data.checked)} Mengenprüfungen · ${integer(data.found)} Treffer`;
+    if (data.type === 'progress') $('progressText').textContent = data.phase === 'offers' ? `Angebote vergleichen · ${integer(data.candidates)} mögliche Handelsverbindungen` : data.phase === 'ranking' ? `Mengen und Flugzeiten vergleichen · ${integer(data.ranked)} Anschlussangebote bewertet · ${integer(data.found)} Treffer` : `${integer(data.considered)} Touren gesichtet · ${integer(data.checked)} Mengenprüfungen · ${integer(data.found)} Treffer`;
     else if (data.type === 'result') {
       busy = false; results = data.result.results; stats = data.result.stats;
       $('searchProgress').hidden = true; $('cancelButton').hidden = true; updateSource(); renderResults();
@@ -176,7 +178,8 @@ function renderResults() {
       const tradeCount = route.tradeCount || route.legs.filter(l => l.good).length;
       const tourLabel = !route.roundTrip ? 'ONE WAY' : route.returnScope === 'system' ? 'SYSTEMTOUR' : 'RUNDTOUR';
       const hasPob = route.legs.some(l => dataset.bases.find(b => b.id === l.source)?.kind === 'pob' || dataset.bases.find(b => b.id === l.target)?.kind === 'pob');
-      return `<tr><td><div class="route-head"><span class="rank">${String(index + 1).padStart(2, '0')}</span><span class="tag ${route.roundTrip ? 'green' : ''}">${tourLabel}</span>${hasPob ? '<span class="tag">POB</span>' : ''}</div><div class="route-name">${names.map(escape).join('<span class="route-arrow">→</span>')}</div><div class="route-system">${escape(profile.name)} · ${integer(tradeCount)} ${tradeCount === 1 ? 'Handelsflug' : 'Handelsflüge'}${route.localTransfers ? ` · ${integer(route.localTransfers)} Anflüge` : ''}${route.returnSystemName ? ` · Ziel: ${escape(route.returnSystemName)}` : ''} · ${route.jumps == null ? 'Sprünge unbekannt' : `${integer(route.jumps)} Sprünge`} · ${duration(route.seconds)}</div><div class="mobile-profit">${route.hourly != null ? `${money(route.hourly)} $ / h` : '$ / h unbekannt'}</div></td><td class="goods">${route.legs.map((leg, n) => leg.good ? `${escape(leg.name)}<br><b>${integer(route.quantities[n])} Stk. · ${integer(route.quantities[n] * leg.volume)} Vol.</b>` : `<span>${leg.purpose === 'return' ? 'Leerer Rückweg' : 'Anflug zur Abholung'}</span>`).join('<br>')}</td><td class="numeric"><strong title="${integer(route.profit)} $">${money(route.profit)}</strong><div class="subvalue">${integer(route.peakCargo)} / ${integer(activeOptions.cargo)} Vol.</div></td><td class="numeric hourly"><strong>${money(route.hourly)}</strong><div class="subvalue">${duration(route.seconds)}</div></td><td><button class="detail-button" data-route="${index}" aria-label="Handelsplan für Tour ${index + 1} öffnen">↗</button></td></tr>`;
+      const manifest = route.legs.map((leg, n) => `<div class="cargo-manifest">${route.loads[n].length ? route.loads[n].slice(0, 3).map(line => `<span class="cargo-item">${escape(line.name)}<b>${integer(line.quantity)} Stk. · ${integer(line.quantity * line.volume)} Vol.</b></span>`).join('') + (route.loads[n].length > 3 ? `<small>+ ${integer(route.loads[n].length - 3)} weitere Waren · siehe Handelsplan</small>` : '') : `<span>${leg.purpose === 'return' ? 'Leerer Rückweg' : 'Anflug zur Abholung'}</span>`}</div>`).join('');
+      return `<tr><td><div class="route-head"><span class="rank">${String(index + 1).padStart(2, '0')}</span><span class="tag ${route.roundTrip ? 'green' : ''}">${tourLabel}</span>${hasPob ? '<span class="tag">POB</span>' : ''}${route.mixed ? '<span class="tag cargo-tag" title="Mehrere Waren auf demselben Flug">MIX</span>' : ''}</div><div class="route-name">${names.map(escape).join('<span class="route-arrow">→</span>')}</div><div class="route-system">${escape(profile.name)} · ${integer(tradeCount)} ${tradeCount === 1 ? 'Handelsflug' : 'Handelsflüge'}${route.mixed ? ` · Bis zu ${integer(Math.max(...route.loads.map(load => load.length)))} Waren je Flug` : ''}${route.localTransfers ? ` · ${integer(route.localTransfers)} Anflüge` : ''}${route.returnSystemName ? ` · Ziel: ${escape(route.returnSystemName)}` : ''} · ${route.jumps == null ? 'Sprünge unbekannt' : `${integer(route.jumps)} Sprünge`} · ${duration(route.seconds)}</div><div class="mobile-profit">${route.hourly != null ? `${money(route.hourly)} $ / h` : '$ / h unbekannt'}</div></td><td class="goods">${manifest}</td><td class="numeric"><strong title="${integer(route.profit)} $">${money(route.profit)}</strong><div class="subvalue">${integer(route.peakCargo)} / ${integer(activeOptions.cargo)} Vol.</div></td><td class="numeric hourly"><strong>${money(route.hourly)}</strong><div class="subvalue">${duration(route.seconds)}</div></td><td><button class="detail-button" data-route="${index}" aria-label="Handelsplan für Tour ${index + 1} öffnen">↗</button></td></tr>`;
     }).join('')}</tbody></table>`;
   }
   $('resultsFoot').textContent = `${integer(stats?.checked || 0)} Touren mit Mengenprüfung · ${integer(stats?.excludedBases || 0)} Basen ausgeschlossen · ${stats?.partial ? 'Begrenzte Suche; weitere Möglichkeiten können existieren' : 'Kandidatensuche abgeschlossen'} · ${dataMode === 'demo' ? 'Fiktives Beispiel' : 'Persönlichen Dockzugang prüfen'}`;
@@ -200,7 +203,7 @@ function renderDetail(quote, repeats) {
     const baseId = stop === 0 ? route.legs[0].source : route.legs[stop - 1].target;
     content += `<div class="halt"><h3>${escape(byId.get(baseId)?.name || baseId)}</h3>`;
     for (const event of eventsByStop[stop]) {
-      const leg = route.legs[event.leg], base = byId.get(event.base), item = base.offers.find(i => i.id === leg.good);
+      const leg = cargoItems(route.legs[event.leg])[event.item || 0], base = byId.get(event.base), item = base.offers.find(i => i.id === leg.good);
       const q = event.quantity;
       const limits = [];
       if (event.kind === 'buy') {
@@ -215,9 +218,9 @@ function renderDetail(quote, repeats) {
       content += `<div class="event"><span class="event-label">${event.kind === 'buy' ? 'KAUF' : 'VERKAUF'}</span><div class="event-text">${integer(q)} × ${escape(leg.name)} zu ${integer(event.price)} $<small>${integer(q * leg.volume)} Volumen · ${integer(q * event.price)} $ gesamt${limits.length ? ` · Grenze: ${limits.map(escape).join(', ')}` : ''}</small>${base.kind === 'pob' ? `<small class="event-meta">POB danach: ${integer(event.after.cash)} $ · ${integer(event.after.space)} Vol. frei · ${integer(event.after.stock)} Stk. Bestand</small>` : ''}</div></div>`;
     }
     if (stop < route.legs.length) {
-      const leg = route.legs[stop], q = quote.quantities[stop];
+      const leg = route.legs[stop], manifest = quote.loads[stop];
       const returning = route.roundTrip && stop === route.legs.length - 1;
-      const load = leg.good ? `${integer(q)} × ${escape(leg.name)} · ${integer(q * leg.volume)} Volumen` : 'Leerflug · 0 Volumen';
+      const load = manifest.length ? `${manifest.map(line => `${integer(line.quantity)} × ${escape(line.name)}`).join(' + ')} · ${integer(manifest.reduce((sum, line) => sum + line.quantity * line.volume, 0))} Volumen` : 'Leerflug · 0 Volumen';
       content += `<div class="event flight"><span class="event-label">${returning ? 'RÜCKFLUG' : 'FLUG'}</span><div class="event-text">Nach ${escape(byId.get(leg.target)?.name || leg.target)}<small>${load}${knownTime ? ' · Flugzeit in der Gesamtdauer enthalten' : ''}</small></div></div>`;
     } else if (route.closed) {
       content += '<p class="detail-note route-arrival">Startbasis wieder erreicht · Rundtour abgeschlossen.</p>';
@@ -226,7 +229,7 @@ function renderDetail(quote, repeats) {
     }
     content += '</div>';
   }
-  if (repeats) content += `<p class="detail-note">Mit fortgeschriebenen Beständen: <strong>${integer(repeats.count)}${repeats.capped ? '+' : ''} berechenbare Umläufe</strong>, zusammen ${integer(repeats.profit)} $ für die ersten ${integer(repeats.count)} Umläufe. Die Ladungsmengen können sich pro Umlauf ändern. Fremde Händler und laufende Produktion sind nicht vorausgesagt.</p>`;
+  if (repeats) content += `<p class="detail-note">Mit fortgeschriebenen Beständen: <strong>${integer(repeats.count)}${repeats.capped ? '+' : ''} berechenbare Umläufe</strong>, zusammen ${integer(repeats.profit)} $ für die ersten ${integer(repeats.count)} Umläufe. Ladungsmengen und Warenzusammensetzung können sich pro Umlauf ändern. Fremde Händler und laufende Produktion sind nicht vorausgesagt.</p>`;
   content += `<p class="detail-note">Die Handelsreihenfolge oben gehört zur Mengenprüfung. Eine andere Reihenfolge kann an Geld oder Lagerplatz scheitern. ${knownTime ? 'Die Flugzeit berücksichtigt das gewählte Zeitmodell; Gefechte, Warteschlangen und Umwege sind nicht eingerechnet.' : 'Für diese Tour fehlt eine belastbare Flugzeit. Ein Stundenverdienst wird deshalb nicht ausgewiesen.'}</p>`;
   content += `<div class="halt"><h3>Basis ausschließen</h3><p class="detail-note">Wenn du dort nicht andocken kannst, kannst du die Basis für zukünftige Suchen ausblenden.</p><div class="blocked-list">${[...new Set(route.legs.flatMap(l => [l.source, l.target]))].map(id => `<button class="button subtle" data-block="${escape(id)}">${escape(byId.get(id)?.name || id)}</button>`).join(' ')}</div></div>`;
   $('detailContent').innerHTML = content;
@@ -234,7 +237,7 @@ function renderDetail(quote, repeats) {
 
 function showModel() {
   const coverage = navigation?.coverage;
-  $('modelContent').innerHTML = `<h3>Marktdaten</h3><p>${dataset ? `${dataMode === 'demo' ? 'Fiktives Beispiel' : 'Letzter Abruf / Import'}: ${clock(dataset.asOf)}. ${integer(dataset.bases.length)} Basen geladen.` : 'Noch kein gültiger Markt-Abruf vorhanden.'} ${lastError ? escape(lastError) : ''}</p><p>Der Abrufzeitpunkt ist kein Beleg für das Alter der vorgelagerten Serverdaten. Zwischen Abfrage und Ankunft können andere Spieler handeln. Fehlendes POB-Geld, fehlender Lagerplatz und unvollständige Warenwerte werden nicht als unbegrenzte Kapazität behandelt.</p><h3>Flugzeit</h3><p>${navigation ? `${integer(coverage?.systems || 0)} Systeme · ${integer(navigation.nodes.length)} Navigationspunkte · ${escape(navigation.patch || '')}.` : 'Kein Navigationskatalog geladen.'} ${coverage?.missingSystems?.length ? `${integer(coverage.missingSystems.length)} Systeme fehlen im Katalog.` : ''} ${coverage?.lockedGateData === false ? 'Daten zu gesperrten Gates fehlen; die Navigation ist unvollständig.' : ''}</p><p>Die drei Profile rechnen Cruise-Strecken mit 350, 410 oder 500 m/s. Tradelanes verwenden einen separaten Modellwert. Start-/Stoppzeit, Cruise-Ladezeit und Sprungzeit kannst du im Auftrag ändern. ${navigation?.assumptions?.map(escape).join(' · ') || ''}</p><h3>Rundtouren und Suchumfang</h3><p>Für jede geprüfte Tour werden ganzzahlige Ladungsmengen und Handelsreihenfolgen gemeinsam optimiert. Geld, Warenbestand und Lagerplatz werden bei jedem Geschäft fortgeschrieben. Eine Ware pro Handelsabschnitt; positive Handelsmargen. Rückladungen können an anderen Basen im selben Abflugsystem gekauft und an beliebigen passenden Basen im Zielsystem verkauft werden. Lokale Abholflüge zählen vollständig zu Dauer und Stundenverdienst. Ein leerer Rückweg muss ausdrücklich zugelassen werden. Mischladungen und verlustbringende Teilgeschäfte sind nicht Teil dieser Version.</p><p>Die Suche bewertet eine begrenzte Auswahl von Anschlussangeboten. „Beste gefundene Touren“ ist kein Nachweis des weltweiten Optimums. Für tiefere Suchen kannst du die Suchtiefe erhöhen. Persönliche Reputation, Whitelists und Handelsverbote sind nicht automatisch bestätigt.</p><h3>Ausgeblendete Basen</h3><p>${blocked.length ? `${integer(blocked.length)} Basen sind ausgeblendet.` : 'Keine Basen ausgeblendet.'}</p>${blocked.length ? '<button class="button" id="clearBlocked">Alle wieder einbeziehen</button>' : ''}<h3>Quellen</h3><p><a href="https://darkstat.dd84ai.com/" target="_blank" rel="noopener">Darkstat</a> · <a href="https://patch.discoverygc.com/patchlist.xml" target="_blank" rel="noopener">Öffentliche Discovery-Patchdaten</a></p>`;
+  $('modelContent').innerHTML = `<h3>Marktdaten</h3><p>${dataset ? `${dataMode === 'demo' ? 'Fiktives Beispiel' : 'Letzter Abruf / Import'}: ${clock(dataset.asOf)}. ${integer(dataset.bases.length)} Basen geladen.` : 'Noch kein gültiger Markt-Abruf vorhanden.'} ${lastError ? escape(lastError) : ''}</p><p>Der Abrufzeitpunkt ist kein Beleg für das Alter der vorgelagerten Serverdaten. Zwischen Abfrage und Ankunft können andere Spieler handeln. Fehlendes POB-Geld, fehlender Lagerplatz und unvollständige Warenwerte werden nicht als unbegrenzte Kapazität behandelt.</p><h3>Flugzeit</h3><p>${navigation ? `${integer(coverage?.systems || 0)} Systeme · ${integer(navigation.nodes.length)} Navigationspunkte · ${escape(navigation.patch || '')}.` : 'Kein Navigationskatalog geladen.'} ${coverage?.missingSystems?.length ? `${integer(coverage.missingSystems.length)} Systeme fehlen im Katalog.` : ''} ${coverage?.lockedGateData === false ? 'Daten zu gesperrten Gates fehlen; die Navigation ist unvollständig.' : ''}</p><p>Die drei Profile rechnen Cruise-Strecken mit 350, 410 oder 500 m/s. Tradelanes verwenden einen separaten Modellwert. Start-/Stoppzeit, Cruise-Ladezeit und Sprungzeit kannst du im Auftrag ändern. ${navigation?.assumptions?.map(escape).join(' · ') || ''}</p><h3>Rundtouren und Suchumfang</h3><p>Für jede geprüfte Tour werden ganzzahlige Ladungsmengen und Handelsreihenfolgen gemeinsam optimiert. Geld, Warenbestand und Lagerplatz werden bei jedem Geschäft fortgeschrieben. Mehrere profitable Waren können auf demselben Flug zwischen denselben Basen kombiniert werden. Geld, Frachtraum und POB-Lager gelten für die gesamte Ladung gemeinsam. Rückladungen können an anderen Basen im selben Abflugsystem gekauft und an beliebigen passenden Basen im Zielsystem verkauft werden. Lokale Abholflüge zählen vollständig zu Dauer und Stundenverdienst. Ein leerer Rückweg muss ausdrücklich zugelassen werden. Mischladungen verursachen keine zusätzlichen Stopps. Verlustbringende Teilgeschäfte sind nicht Teil dieser Version.</p><p>Die Vorauswahl berücksichtigt handelbare Mengen, geschätzte Flugzeit und Rückladungen. Eine Auswahl nach hohem Potenzial erhält auch Angebote, die erst durch die Handelsreihenfolge finanzierbar werden. Die genaue Flugzeit und eine gemeinsame Mengenprüfung entscheiden anschließend über die ausgewerteten Touren. Der Suchumfang bleibt begrenzt. „Beste gefundene Touren“ ist kein Nachweis des weltweiten Optimums. Für tiefere Suchen kannst du die Suchtiefe erhöhen. Persönliche Reputation, Whitelists und Handelsverbote sind nicht automatisch bestätigt.</p><h3>Ausgeblendete Basen</h3><p>${blocked.length ? `${integer(blocked.length)} Basen sind ausgeblendet.` : 'Keine Basen ausgeblendet.'}</p>${blocked.length ? '<button class="button" id="clearBlocked">Alle wieder einbeziehen</button>' : ''}<h3>Quellen</h3><p><a href="https://darkstat.dd84ai.com/" target="_blank" rel="noopener">Darkstat</a> · <a href="https://patch.discoverygc.com/patchlist.xml" target="_blank" rel="noopener">Öffentliche Discovery-Patchdaten</a></p>`;
   $('modelDialog').showModal();
 }
 

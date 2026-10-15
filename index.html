@@ -57,6 +57,7 @@
           <p class="hint capital-hint" id="capitalHint">Dein verfügbares Startgeld für Warenkäufe. Verkaufserlöse finanzieren die nächsten Käufe; POB-Geld wird separat geprüft.</p>
           </fieldset>
           <fieldset class="option-group"><legend>Suchfilter</legend>
+          <label class="check"><input id="mixedCargo" type="checkbox" checked><span>Mischladungen optimieren<span class="hint">Mehrere profitable Waren zwischen denselben Basen kombinieren. Dafür entstehen keine zusätzlichen Stopps.</span></span></label>
           <label class="field">Maximale Tourdauer<select id="maxMinutes"><option value="15">15 Minuten</option><option value="30">30 Minuten</option><option value="60" selected>60 Minuten</option><option value="120">120 Minuten</option><option value="1440">Ohne Begrenzung</option></select></label>
           <label class="check"><input id="pobs" type="checkbox" checked><span>Player Owned Bases einbeziehen</span></label>
           </fieldset>
@@ -70,7 +71,7 @@
           </div></details>
           <button class="button primary search-button" id="searchButton" type="submit" disabled>Routen berechnen <span aria-hidden="true">↗</span></button>
           <button type="button" class="button subtle cancel" id="cancelButton" hidden>Suche beenden</button>
-          <p class="form-note">Eine Ware je Handelsabschnitt. Zusätzliche Abholbasen und alle Anflüge werden mitgerechnet.</p>
+          <p class="form-note">Passende Waren werden zwischen denselben Basen kombiniert. Alle Abholbasen und Anflüge zählen zur Tourzeit.</p>
         </form>
       </aside>
       <section class="results-panel" id="results" aria-labelledby="resultsTitle">

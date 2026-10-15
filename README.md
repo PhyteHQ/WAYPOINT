@@ -18,6 +18,9 @@ This project has no dependency on, and makes no changes to, RHW or DTR.
 - Every local pickup flight and extra station stop is included in travel time.
   The target system defaults to the starting system and can be overridden.
 - All displayed monetary amounts use **$**, with unchanged in-game values.
+- Optional mixed manifests combine profitable goods on the same physical flight,
+  without adding docks or pickup stops. Each selected good has an integer quantity;
+  ship volume, player capital, POB cash and storage are shared by the whole load.
 - Integer cargo quantities constrained by ship volume, purchase capital,
   source reserves, destination max stock, POB money, and POB storage.
 - Separate ship cargo volume and original POB storage volume.
@@ -113,13 +116,23 @@ The interface states these assumptions. Personal reputation and POB whitelists
 cannot be confirmed from these public market records. The user can exclude
 bases they cannot use.
 
-Search is deliberately bounded: positive-margin trading legs, one good per
-trading leg, up to 18 or 45 matching continuation/return candidates, and an
-18-second search budget. Destination matching precedes candidate pruning.
-Displayed
-quantities are jointly optimized and replay-validated for each candidate tour.
+Search is deliberately bounded: positive-margin trading legs, up to 18 or 45
+matching continuation/return candidates, and an 18-second search budget.
+Goods sharing a source/destination pair are grouped into one manifest.
+Preselection estimates affordable quantities, source reserves, destination
+demand, shared cash/storage and flight time; several ranking criteria retain
+high-potential alternatives and promising backhauls. A bounded shortlist gets
+exact navigation times before the continuation limit is applied. Snapshot
+limits used for ranking never replace the final joint feasibility check.
+Destination matching precedes candidate pruning. Displayed quantities are
+jointly optimized and replay-validated for each candidate tour. Detail plans
+replay the exact selected quantities and order rather than silently requoting.
+The trading-order search considers unloading incoming goods before or after
+buying outgoing goods at an intermediate stop. Arbitrary interleaving of
+individual items is not exhaustively searched; integer solving also has a
+per-order time limit.
 The list is labelled **best found**, not the mathematically proven global
-optimum. Loss-making intermediate trades, mixed loads, and itineraries with
+optimum. Loss-making intermediate trades and itineraries with
 four or more loaded trading legs are outside this version. Local transfers may
 add extra bases to the itinerary. Empty return requires explicit permission;
 empty local pickup flights remain possible and are fully timed.
